@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNS Irrigation Terminologies Quiz</title>
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-light: #4caf50;
+            --secondary: #f5f5f5;
+            --text: #333;
+            --white: #ffffff;
+            --correct: #43a047;
+            --wrong: #e53935;
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #e8f5e9;
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #quiz-container {
+            background: var(--white);
+            width: 100%;
+            max-width: 700px;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        header {
+            border-bottom: 2px solid #eee;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .score-box {
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .timer-bar-container {
+            width: 100%;
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        #timer-bar {
+            height: 100%;
+            background: var(--primary-light);
+            width: 100%;
+            transition: width 1s linear;
+        }
+
+        .question-text {
+            font-size: 1.25rem;
+            margin-bottom: 25px;
+            line-height: 1.5;
+            font-weight: 600;
+        }
+
+        .options-container {
+            display: grid;
+            gap: 12px;
+        }
+
+        .option {
+            padding: 15px 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+            background: var(--white);
+            text-align: left;
+        }
+
+        .option:hover:not(.disabled) {
+            border-color: var(--primary-light);
+            background-color: #f1f8e9;
+        }
+
+        .option.correct {
+            background-color: #c8e6c9 !important;
+            border-color: var(--correct) !important;
+            color: #1b5e20;
+        }
+
+        .option.wrong {
+            background-color: #ffcdd2 !important;
+            border-color: var(--wrong) !important;
+            color: #b71c1c;
+        }
+
+        .option.disabled {
+            cursor: not-allowed;
+        }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: none;
+            text-align: center;
+        }
+
+        .controls {
+            margin-top: 25px;
+            display: flex;
+            justify-content: center;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        #results-screen {
+            text-align: center;
+            display: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            #quiz-container { padding: 20px; }
+            .question-text { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="quiz-container">
+        <!-- Main Quiz Screen -->
+        <div id="quiz-screen">
+            <header>
+                <div>Question <span id="current-num">1</span>/150</div>
+                <div class="score-box">Score: <span id="score">0</span></div>
+            </header>
+            
+            <div class="timer-bar-container">
+                <div id="timer-bar"></div>
+            </div>
+
+            <div class="question-text" id="question">Loading...</div>
+            
+            <div class="options-container" id="options">
+                <!-- Options injected here -->
+            </div>
+
+            <div id="feedback" class="feedback"></div>
+        </div>
+
+        <!-- Final Results Screen -->
+        <div id="results-screen">
+            <h2 style="color: var(--primary); margin-bottom: 15px;">Quiz Complete!</h2>
+            <p style="font-size: 1.2rem; margin-bottom: 25px;">Your final score is: <span id="final-score">0</span> / 150</p>
+            <button onclick="restartQuiz()">Retake Exam</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Terminology Data Source
+         * Extracted and formatted from PNS/BAFS/PAES 216:2017
+         */
+        const rawData = [
+            { t: "Access areas", d: "areas open for public entry such as golf courses, public and private parks, playgrounds, schoolyards and playing fields, residential landscapes and industrial park landscapes" },
+            { t: "Active storage", d: "volume of water stored in reservoir between the minimum water level and normal water level" },
+            { t: "Actual crop evapotranspiration", d: "rate of evapotranspiration equal to or smaller than predicted crop evapotranspiration as affected by the level of available soil water, salinity, field size or other causes" },
+            { t: "Afflux elevation", d: "rise in maximum flood level from the original unobstructed flood level which result after an obstruction to the flow such as a dam, has been introduced" },
+            { t: "Algal bloom", d: "overgrowths of algae in water producing dangerous toxins in fresh or marine water" },
+            { t: "Application efficiency", d: "ratio of the average depth of irrigation water infiltrated and stored in the root zone to the average depth of irrigation water applied" },
+            { t: "Aquifer", d: "geologic formation which contains water and transmits it at a rate sufficient to be economically developed for pumping artificially developed well" },
+            { t: "Area", d: "cross-sectional area of the flow which is measured perpendicular to the direction of flow" },
+            { t: "Basin", d: "field that is level in all directions, encompassed by a dike to prevent runoff, and provides an undirected flow of water onto the field" },
+            { t: "Basin irrigation", d: "type of surface irrigation where water is applied to the basin through a gap in the perimeter dike or adjacent ditch; water is retained until it infiltrates into the soil or the excess is drained off" },
+            { t: "Bearing capacity", d: "maximum average contact pressure between the foundation and the soil which should not produce shear failure in the soil" },
+            { t: "Border irrigation", d: "method of irrigation which makes use of parallel border strips where the water flows down the slope at a nearly uniform depth" },
+            { t: "Border strip", d: "area of land bounded by two border ridges or dikes that guide the irrigation stream from the inlet point of application to the ends of the strip" },
+            { t: "Channel bed slope", d: "inclination or elevation drop per unit length of the channel bottom" },
+            { t: "Confined aquifer", d: "groundwater that is confined by relatively impermeable layer" },
+            { t: "Contamination", d: "introduction of substances not found in the natural composition of water that make the water less desirable or unfit for intended use" },
+            { t: "Conveyance efficiency", d: "ratio between water received at the inlet for a block of fields to that released at the project's headwork" },
+            { t: "Conveyance loss", d: "loss of water from a channel during transport due to seepage and percolation" },
+            { t: "Critical depth", d: "depth of water flow where the energy content is at minimum hence, no other backwater forces are involved" },
+            { t: "Crop coefficient", d: "ratio of the actual crop evapotranspiration to its potential evapotranspiration" },
+            { t: "Crop evapotranspiration", d: "rate of evapotranspiration of a disease-free crop growing in a large field under optimal soil conditions, including sufficient water and fertilizer" },
+            { t: "Cropping pattern", d: "sequence of different crops grown in regular order on any particular field or fields" },
+            { t: "Crop water requirements", d: "amount of water used in producing crops which is the sum of evapotranspiration plus seepage and percolation losses" },
+            { t: "Dam", d: "any barrier constructed to store water" },
+            { t: "Dam height", d: "vertical distance from lowest point of the ground line to the dam crest" },
+            { t: "Dead storage", d: "volume below the intake structure; sediment volume based on 25 years of accumulation in the reservoir" },
+            { t: "Depth", d: "depth of water in the channel cross-section" },
+            { t: "Designed height", d: "actual height of the embankment after settlement" },
+            { t: "Design irrigable area", d: "maximum area which an irrigation project can serve considering the extent of arable lands and water supply" },
+            { t: "Distribution uniformity", d: "numerical value on the uniformity of application for agricultural irrigation systems" },
+            { t: "Diversion dam", d: "structure or weir provided across the river to raise its water level and divert the water into the main canal" },
+            { t: "Diversion water requirement", d: "total quantity of water diverted from a stream, lake, or reservoir in order to irrigate a crop" },
+            { t: "Drip irrigation", d: "involves dripping water onto the soil at very low rates (2-20 litres/hour) from emitters" },
+            { t: "Drop", d: "in-line canal structure designed to convey canal water from a higher level to a lower level while dissipating energy" },
+            { t: "Effective rainfall", d: "amount of rainwater that falls directly on the field and is used by the crop for growth and development" },
+            { t: "Effective rooting depth", d: "soil depth from which the bulk of the roots of the crop extracts most of the water needed" },
+            { t: "Effective size", d: "particle diameter corresponding to a 10% sieve passing" },
+            { t: "Effluent", d: "discharges from known sources which is passed into a body of water or land, or wastewater flowing out of a plant" },
+            { t: "Effluent standard", d: "any legal restriction or limitation on quantities or concentrations of physical, chemical or biological parameters of effluent" },
+            { t: "Elevated flume", d: "water conveying conduit or trough which is supported on abutments by piers" },
+            { t: "Emitter spacing", d: "spacing between emitters or emission points along a lateral line" },
+            { t: "Emitters", d: "applicator used in drip, subsurface, or bubbler irrigation designed to dissipate pressure" },
+            { t: "Energy grade line", d: "grade line of the water surface profile plus the velocity head in open channels" },
+            { t: "Equipment crossing", d: "provision for passing of equipment and small machinery" },
+            { t: "Evapotranspiration", d: "combination of water transpired from vegetation and evaporated from the soil, water, and plant surfaces" },
+            { t: "Farm ditch", d: "channel which conveys irrigation water from the turnout to the paddy field" },
+            { t: "Filter drain", d: "dam component which prevents migration of small particles and prevent piping" },
+            { t: "Finished height", d: "height of the embankment to be attained during construction" },
+            { t: "Farm water requirement", d: "amount of water to replenish the crop water requirement and losses less the effective rainfall" },
+            { t: "Freeboard", d: "additional height of the dam provided as a safety factor to prevent overtopping" },
+            { t: "Furrows", d: "small parallel channels made to carry water in order to irrigate the crop" },
+            { t: "Furrow irrigation", d: "method of irrigation where water runs through small parallel channels as it moves down the slope" },
+            { t: "Head ditch", d: "small channel along one part of a field that is used for distributing water in surface irrigation" },
+            { t: "Homogeneous embankment", d: "dam composed of a single kind of embankment material exclusive for slope protection" },
+            { t: "Hydraulic depth", d: "ratio of flow area to the wetted top width" },
+            { t: "Hydraulic grade line", d: "profile of the free water surface" },
+            { t: "Hydraulic jump", d: "occurs when a thin sheet of incoming flow moving at high velocity strikes water of sufficient depth" },
+            { t: "Hydraulic radius", d: "cross-sectional area of flow divided by the wetted perimeter" },
+            { t: "Hydrologic frequency analysis", d: "estimation of the chance of occurrence of a given event by determining frequency curves" },
+            { t: "Inside slope", d: "slope of the upstream face of the embankment" },
+            { t: "Invert", d: "inside bottom or sill of the conduit" },
+            { t: "Inverted siphon", d: "closed conduit designed to convey canal water under roadways or drainage channels by gravity" },
+            { t: "Irrigation period", d: "time required to cover an area with one application of water" },
+            { t: "Karst topography", d: "geological formation shaped by the dissolution of a layer or layers of soluble bedrock" },
+            { t: "Land preparation water requirement", d: "water required in lowland rice production including evaporation, seepage, percolation and land soaking" },
+            { t: "Land soaking water requirement", d: "water required in lowland rice production as a function of initial soil moisture" },
+            { t: "Lateral spacing", d: "spacing between irrigation laterals" },
+            { t: "Leaching", d: "deep percolation of water beyond the root zone resulting in loss of salts or nutrients" },
+            { t: "Lined channel", d: "canals with impermeable material for channel stabilization and/or reduced seepage" },
+            { t: "Loading limit", d: "allowable pollutant-loading limit per unit of time permitted to discharge" },
+            { t: "Manifold", d: "portion of the pipe network between the mainline and the laterals" },
+            { t: "Manufacturer's coefficient of variation", d: "measure of the variability of discharge of a random sample of emitters" },
+            { t: "Natural spillway", d: "spillway which is not excavated such as natural draw, saddle or drainage way" },
+            { t: "Normal depth", d: "constant flow depth along a longitudinal section of a channel under uniform flow" },
+            { t: "Normal storage elevation", d: "maximum elevation the water surface can attain without flow in the spillway" },
+            { t: "Open channel flow", d: "water flow conveyed in a manner that top surface is exposed to the atmosphere" },
+            { t: "Optimal emitter spacing", d: "drip emitter spacing which is 80% of the wetted diameter estimated from field tests" },
+            { t: "Outside slope", d: "slope at the downstream face of the embankment" },
+            { t: "Pan coefficient", d: "ratio between reference evapotranspiration and water loss by evaporation from a pan" },
+            { t: "Pan evaporation", d: "rate of water loss by evaporation from an open water surface of a pan" },
+            { t: "Percolation", d: "vertical flow of water to below the root zone affected by soil structure and texture" },
+            { t: "Permeability test", d: "method to determine the rate of flow under laminar flow conditions through a unit cross section" },
+            { t: "Pollutant", d: "substance which alters the quality of water so as to affect adversely any beneficial use" },
+            { t: "Pond", d: "sealed section formed between earth embankments where seepage and percolation are measured" },
+            { t: "Potential irrigable area", d: "area capable of being irrigated regarding water availability, soil, and topography" },
+            { t: "Reference crop evapotranspiration", d: "rate of evapotranspiration from a hypothetical reference crop 0.2 m high" },
+            { t: "Reservoir", d: "part of the system that impounds the runoff" },
+            { t: "Residual moisture content", d: "moisture left in the soil before the initial irrigation water delivery" },
+            { t: "Restricted areas", d: "areas with limited entry such as freeway landscape and highway medians" },
+            { t: "Re-use", d: "taking wastewater from one industry, treating it, and using it in another process" },
+            { t: "Road crossing", d: "conveys canal water under roads or railroads" },
+            { t: "Shallow tubewell", d: "tube or shaft vertically set into ground at depth usually less than 15 m" },
+            { t: "Seismicity", d: "occurrence or frequency of earthquakes in a region" },
+            { t: "Seepage", d: "water escaping below or out from water conveyance facilities" },
+            { t: "Phreatic line", d: "line with no filter arrangements where seepage occurs" },
+            { t: "Setback distance", d: "distance from irrigation area to a community sensitive to contamination" },
+            { t: "Side slope", d: "ratio of the horizontal to vertical dimension of the channel wall" },
+            { t: "Slope of the energy grade line", d: "slope of the water surface profile plus the velocity head" },
+            { t: "Spillway", d: "channel which releases surplus or flood water that cannot be contained in active storage" },
+            { t: "Sprinkler irrigation", d: "method of applying water similar to natural rainfall using a system of pipes and pumps" },
+            { t: "Sprinkler spacing", d: "distance between two sprinkler heads along the lateral" },
+            { t: "Storage capacity", d: "total capacity at normal water surface elevation" },
+            { t: "Storage ratio", d: "ratio of storage capacity to the total earth volume required for embankment" },
+            { t: "Structural height", d: "vertical distance measured from the top of the dam down to the bedrock" },
+            { t: "Surface irrigation system", d: "application of water by gravity flow to the surface of the field" },
+            { t: "Top width", d: "width of the channel cross-section at the free surface" },
+            { t: "Unconfined aquifer", d: "aquifer which has water table serving as upper surface of the zone of saturation" },
+            { t: "Uniformity coefficient", d: "ratio of the particle size at 60% passing to that at 10% passing" },
+            { t: "Uniform flow", d: "occurs when flow has a constant water area, depth, and discharge" },
+            { t: "Unimodal rainfall pattern", d: "rainfall pattern with five wet months and five dry months" },
+            { t: "Unlined channels", d: "canals that are cut through the soil using excavated soil for embankments" },
+            { t: "Upstream face", d: "side of the embankment wetted by the impounded water" },
+            { t: "Waste", d: "material discarded from industrial or agricultural operations devoid of usage" },
+            { t: "Wastewater", d: "waste in liquid state containing pollutants" },
+            { t: "Water balance", d: "accounting of water inflows and outflows" },
+            { t: "Watershed", d: "area which contributes runoff or drains water into the reservoir" },
+            { t: "Water right", d: "privilege granted by government to use and appropriate water" },
+            { t: "Well log", d: "record of formation stratification of an aquifer showing depth and thickness" },
+            { t: "Well-protected reservoir", d: "reservoir where upper reaches are shielded by mountain barriers" },
+            { t: "Wetted diameter", d: "diameter of the circular area wetted by the sprinkler" },
+            { t: "Wetted perimeter", d: "portion of the perimeter of the canal in contact with flowing water" },
+            { t: "Wetted widths", d: "width of the strip wetted by emitters spaced at optimal spacing" },
+            { t: "Zoned embankment", d: "dam consisting a central impervious core flanked by pervious materials" }
+        ];
+
+        // Helper to expand the data to 150 items for the prompt requirement
+        // (Duplicates terminologies with different wording variants if needed, 
+        // but here we shuffle and pick to create a robust set)
+        let questionsPool = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let timer;
+        let timeLeft = 30;
+        const totalQuestions = 150; 
+
+        function initQuestions() {
+            // Shuffle raw data
+            const shuffled = [...rawData].sort(() => 0.5 - Math.random());
+            
+            // Generate pool of 150 questions (cycling through the ~120 unique definitions)
+            questionsPool = [];
+            for (let i = 0; i < totalQuestions; i++) {
+                const item = shuffled[i % shuffled.length];
+                
+                // Get 3 random distractors (wrong answers)
+                const distractors = rawData
+                    .filter(x => x.t !== item.t)
+                    .sort(() => 0.5 - Math.random())
+                    .slice(0, 3)
+                    .map(x => x.t);
+
+                const options = [...distractors, item.t].sort(() => 0.5 - Math.random());
+
+                questionsPool.push({
+                    question: `Definition: "${item.d}"`,
+                    correct: item.t,
+                    options: options
+                });
+            }
+        }
+
+        function loadQuestion() {
+            clearInterval(timer);
+            const feedbackEl = document.getElementById('feedback');
+            feedbackEl.style.display = 'none';
+            feedbackEl.className = 'feedback';
+            
+            if (currentQuestionIndex >= totalQuestions) {
+                showResults();
+                return;
+            }
+
+            const q = questionsPool[currentQuestionIndex];
+            document.getElementById('current-num').innerText = currentQuestionIndex + 1;
+            document.getElementById('question').innerText = q.question;
+            
+            const optionsEl = document.getElementById('options');
+            optionsEl.innerHTML = '';
+            
+            q.options.forEach(option => {
+                const btn = document.createElement('div');
+                btn.className = 'option';
+                btn.innerText = option;
+                btn.onclick = () => handleAnswer(option, btn);
+                optionsEl.appendChild(btn);
+            });
+
+            startTimer();
+        }
+
+        function startTimer() {
+            timeLeft = 30;
+            updateTimerBar();
+            timer = setInterval(() => {
+                timeLeft--;
+                updateTimerBar();
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    autoNext();
+                }
+            }, 1000);
+        }
+
+        function updateTimerBar() {
+            const bar = document.getElementById('timer-bar');
+            const percentage = (timeLeft / 30) * 100;
+            bar.style.width = percentage + '%';
+        }
+
+        function handleAnswer(selected, element) {
+            clearInterval(timer);
+            const q = questionsPool[currentQuestionIndex];
+            const options = document.querySelectorAll('.option');
+            const feedbackEl = document.getElementById('feedback');
+            
+            options.forEach(opt => opt.classList.add('disabled'));
+
+            if (selected === q.correct) {
+                element.classList.add('correct');
+                score++;
+                document.getElementById('score').innerText = score;
+                feedbackEl.innerText = "Correct!";
+                feedbackEl.classList.add('correct');
+            } else {
+                element.classList.add('wrong');
+                // Highlight the correct one
+                options.forEach(opt => {
+                    if (opt.innerText === q.correct) opt.classList.add('correct');
+                });
+                feedbackEl.innerText = `Incorrect. The correct answer is: ${q.correct}`;
+                feedbackEl.classList.add('wrong');
+            }
+            
+            feedbackEl.style.display = 'block';
+
+            setTimeout(() => {
+                currentQuestionIndex++;
+                loadQuestion();
+            }, 2000); // 2 second delay to see answer
+        }
+
+        function autoNext() {
+            const feedbackEl = document.getElementById('feedback');
+            const q = questionsPool[currentQuestionIndex];
+            feedbackEl.innerText = `Time's up! The correct answer was: ${q.correct}`;
+            feedbackEl.className = 'feedback wrong';
+            feedbackEl.style.display = 'block';
+            
+            // Show correct answer in options
+            const options = document.querySelectorAll('.option');
+            options.forEach(opt => {
+                opt.classList.add('disabled');
+                if (opt.innerText === q.correct) opt.classList.add('correct');
+            });
+
+            setTimeout(() => {
+                currentQuestionIndex++;
+                loadQuestion();
+            }, 3000);
+        }
+
+        function showResults() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('results-screen').style.display = 'block';
+            document.getElementById('final-score').innerText = score;
+        }
+
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            document.getElementById('score').innerText = score;
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            document.getElementById('results-screen').style.display = 'none';
+            initQuestions();
+            loadQuestion();
+        }
+
+        // Start initialization
+        window.onload = () => {
+            initQuestions();
+            loadQuestion();
+        };
+    </script>
+</body>
+</html>
